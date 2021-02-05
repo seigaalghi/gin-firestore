@@ -12,15 +12,14 @@ import (
 )
 
 var (
-	projectID      = os.Getenv("PROJECT_ID")
-	collectionName = "posts"
+	collectionPosts = "posts"
 )
 
 // FindAllPosts is a function to get all data of posts from database
 func FindAllPosts() ([]models.Post, error) {
 	var data []models.Post
 	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, projectID)
+	client, err := firestore.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	if err != nil {
 		log.Fatalf("Failed to create a Firestore Client: %v", err)
 		return nil, err
@@ -28,7 +27,7 @@ func FindAllPosts() ([]models.Post, error) {
 
 	defer client.Close()
 
-	iter := client.Collection(collectionName).Documents(ctx)
+	iter := client.Collection(collectionPosts).Documents(ctx)
 	for {
 		doc, err := iter.Next()
 		if err == iterator.Done {
@@ -38,6 +37,7 @@ func FindAllPosts() ([]models.Post, error) {
 			return nil, err
 		}
 		result := models.Post{
+			ID:        doc.Ref.ID,
 			Title:     doc.Data()["title"].(string),
 			Text:      doc.Data()["text"].(string),
 			Date:      doc.Data()["date"].(time.Time),
@@ -54,7 +54,7 @@ func FindAllPosts() ([]models.Post, error) {
 //SavePost is to Create new post
 func SavePost(request *models.Post) (*models.Post, error) {
 	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, projectID)
+	client, err := firestore.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	if err != nil {
 		log.Fatalf("Failed to create a Firestore Client: %v", err)
 		return nil, err
@@ -62,7 +62,7 @@ func SavePost(request *models.Post) (*models.Post, error) {
 
 	defer client.Close()
 
-	_, _, err = client.Collection(collectionName).Add(ctx, map[string]interface{}{
+	ref, res, err := client.Collection(collectionPosts).Add(ctx, map[string]interface{}{
 		"title":     request.Title,
 		"text":      request.Text,
 		"date":      firestore.ServerTimestamp,
@@ -73,13 +73,15 @@ func SavePost(request *models.Post) (*models.Post, error) {
 	if err != nil {
 		return nil, err
 	}
+	request.ID = ref.ID
+	request.Date = res.UpdateTime
 	return request, nil
 }
 
 //UpdatePost is to Update a post
 func UpdatePost(request *models.Post, ID string) (*models.Post, error) {
 	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, projectID)
+	client, err := firestore.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	if err != nil {
 		log.Fatalf("Failed to create a Firestore Client: %v", err)
 		return nil, err
@@ -87,7 +89,7 @@ func UpdatePost(request *models.Post, ID string) (*models.Post, error) {
 
 	defer client.Close()
 
-	_, err = client.Collection(collectionName).Doc(ID).Update(ctx, []firestore.Update{
+	_, err = client.Collection(collectionPosts).Doc(ID).Update(ctx, []firestore.Update{
 		{
 			Path:  "title",
 			Value: request.Title,
@@ -122,14 +124,14 @@ func UpdatePost(request *models.Post, ID string) (*models.Post, error) {
 //RemovePost is to Create new post
 func RemovePost(ID string) error {
 	ctx := context.Background()
-	client, err := firestore.NewClient(ctx, projectID)
+	client, err := firestore.NewClient(ctx, os.Getenv("PROJECT_ID"))
 	if err != nil {
 		log.Fatalf("Failed to create a Firestore Client: %v", err)
 		return err
 	}
 	defer client.Close()
 
-	if _, err := client.Collection(collectionName).Doc(ID).Delete(ctx); err != nil {
+	if _, err := client.Collection(collectionPosts).Doc(ID).Delete(ctx); err != nil {
 		return err
 	}
 	return nil

@@ -4,17 +4,25 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/seigaalghi/firestore-go/controllers"
-	middleware "github.com/seigaalghi/firestore-go/middlewares"
+	"github.com/seigaalghi/firestore-go/middlewares"
 )
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	server := gin.Default()
 
-	server.GET("/api/v1/posts", middleware.AuthorizeJWT(), controllers.GetPosts)
-	server.POST("/api/v1/posts", controllers.AddPost)
-	server.PUT("/api/v1/posts/:id", controllers.EditPost)
-	server.DELETE("/api/v1/posts/:id", controllers.DeletePost)
+	postV1 := server.Group("/api/v1/posts")
+	postV1.Use(middlewares.AuthorizeJWT())
+
+	postV1.GET("/", controllers.GetPosts)
+	postV1.POST("/", controllers.AddPost)
+	postV1.PUT("/:id", controllers.EditPost)
+	postV1.DELETE("/:id", controllers.DeletePost)
+
+	authV1 := server.Group("/api/v1/auth")
+
+	authV1.POST("/register", controllers.Register)
+	authV1.GET("/login", controllers.Login)
 
 	server.Run(":5000")
 }
